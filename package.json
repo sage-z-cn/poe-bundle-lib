@@ -1,0 +1,69 @@
+{
+  "name": "@poe/bundle-lib",
+  "version": "1.0.0",
+  "description": "Library for *.bundle.bin files of Path of Exile (Rewrite of LibBundle3)",
+  "type": "module",
+  "main": "dist/main.js",
+  "types": "dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
+    },
+    "./oodle": {
+      "types": "./dist/Oodle.d.ts",
+      "import": "./dist/Oodle.js"
+    },
+    "./bundle": {
+      "types": "./dist/Bundle.d.ts",
+      "import": "./dist/Bundle.js"
+    },
+    "./index": {
+      "types": "./dist/Index.d.ts",
+      "import": "./dist/Index.js"
+    },
+    "./records": {
+      "types": "./dist/records/index.d.ts",
+      "import": "./dist/records/index.js"
+    },
+    "./nodes": {
+      "types": "./dist/nodes/index.d.ts",
+      "import": "./dist/nodes/index.js"
+    }
+  },
+  "files": [
+    "dist/",
+    "src/oo2core.dll"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "path-of-exile",
+    "poe",
+    "bundle",
+    "ggpk",
+    "oodle",
+    "game-modding"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aianlinb/LibGGPK3.git"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.41",
+    "typescript": "^5.7.0"
+  },
+  "os": [
+    "win32"
+  ]
+}
