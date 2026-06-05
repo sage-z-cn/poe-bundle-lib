@@ -1,5 +1,5 @@
 import type { IDirectoryNode } from './IDirectoryNode.js';
-import { IFileNode } from './IFileNode.js';
+import type { IFileNode } from './IFileNode.js';
 
 /**
  * Base tree node interface.
@@ -14,7 +14,7 @@ export class ITreeNode {
    * Ends with '/' if the node is an IDirectoryNode.
    */
   static GetPath(node: ITreeNode): string {
-    if (node instanceof IFileNode || ('Record' in node && node.Record !== undefined)) {
+    if ('Record' in node && node.Record !== undefined) {
       return (node as IFileNode).Record.Path!;
     }
     const parts: string[] = [];

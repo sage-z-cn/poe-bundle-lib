@@ -1,6 +1,6 @@
 {
   "name": "poe-bundle-lib",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Library for *.bundle.bin files of Path of Exile (Rewrite of LibBundle3)",
   "type": "module",
   "main": "dist/main.js",

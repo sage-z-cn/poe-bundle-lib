@@ -7,7 +7,7 @@ import { FileRecord } from './records/FileRecord.js';
 import { DirectoryNode } from './nodes/DirectoryNode.js';
 import { FileNode } from './nodes/FileNode.js';
 import { ITreeNode } from './nodes/ITreeNode.js';
-import { IFileNode } from './nodes/IFileNode.js';
+import type { IFileNode } from './nodes/IFileNode.js';
 import type { IDirectoryNode } from './nodes/IDirectoryNode.js';
 import { DriveBundleFactory } from './DriveBundleFactory.js';
 import type { IBundleFactory } from './IBundleFactory.js';
@@ -632,7 +632,7 @@ export class Index {
    * Enumerate all file nodes under a node (DFS).
    */
   static *RecurseFiles(node: ITreeNode): Generator<IFileNode> {
-    if (node instanceof IFileNode || ('Record' in node && node.Record !== undefined)) {
+    if ('Record' in node && node.Record !== undefined) {
       yield node as IFileNode;
     } else if ('Children' in node && node.Children) {
       for (const child of (node as IDirectoryNode).Children) {
