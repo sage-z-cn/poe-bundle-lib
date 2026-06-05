@@ -30,9 +30,14 @@ export class DriveBundleFactory implements IBundleFactory {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    // Create empty file and return buffer
-    fs.writeFileSync(fullPath, Buffer.alloc(0));
-    return Buffer.alloc(60); // Empty header-sized buffer
+    // Write a valid empty bundle header (60 bytes) with proper defaults
+    const header = Buffer.alloc(60);
+    header.writeInt32LE(48, 8);          // headSize
+    header.writeInt32LE(13, 12);         // compressor = Leviathan
+    header.writeInt32LE(1, 16);          // unknown
+    header.writeInt32LE(256 * 1024, 40); // chunkSize = 256KB
+    fs.writeFileSync(fullPath, header);
+    return header;
   }
 
   DeleteBundle(bundlePath: string): boolean {

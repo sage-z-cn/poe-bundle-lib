@@ -264,6 +264,11 @@ export class Index {
     if (this._BundleToWrite) {
       const ms = this._BundleStreamToWrite!;
       this._BundleToWrite.Save(ms.buffer.subarray(0, ms.length));
+      // Write custom bundle to disk
+      if (this._BundleToWrite.Record) {
+        const customPath = (this.bundleFactory as DriveBundleFactory).BaseDirectory + this._BundleToWrite.Record.Path;
+        fs.writeFileSync(customPath, this._BundleToWrite.getFileBuffer());
+      }
       this._BundleToWrite.Dispose();
       this._BundleToWrite = null;
       this._BundleStreamToWrite = null;
@@ -457,8 +462,8 @@ export class Index {
     this.ensureNotDisposed();
     const len = this._Bundles.length;
     const br = new BundleRecord(bundlePath, 0, this, len);
-    const stream = this.bundleFactory.CreateBundle(bundlePath + '.bundle.bin');
-    const b = new Bundle(stream, br);
+    this.bundleFactory.CreateBundle(bundlePath + '.bundle.bin');
+    const b = Bundle.createEmpty(br);
     this._Bundles.push(br);
     this.baseBundle.UncompressedSize += br.RecordLength; // Prevent reallocation when saving
     return b;

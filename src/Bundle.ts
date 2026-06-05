@@ -39,6 +39,7 @@ export class Bundle {
   get CompressedSize(): number { return this.privateHeader.compressedSize; }
 
   private fileBuffer: Buffer;
+  private filePath: string | null;
   private isMemory: boolean;
   private privateHeader: BundleHeader;
   private compressedChunkSizes: Int32Array;
@@ -59,13 +60,14 @@ export class Bundle {
     this.cachedContent = null;
     this.cacheTable = null;
     this.isMemory = Buffer.isBuffer(source);
+    this.filePath = null;
 
     if (this.isMemory) {
       this.fileBuffer = source as Buffer;
     } else {
       // Read entire file into buffer for random access
-      const filePath = path.resolve(source as string);
-      this.fileBuffer = fs.readFileSync(filePath);
+      this.filePath = path.resolve(source as string);
+      this.fileBuffer = fs.readFileSync(this.filePath);
     }
 
     // Initialize with default values first (will be overwritten by readHeader)
@@ -400,6 +402,11 @@ export class Bundle {
 
     if (this.Record) {
       this.Record.UncompressedSize = h.uncompressedSize;
+    }
+
+    // Write to disk if we have a file path
+    if (this.filePath) {
+      fs.writeFileSync(this.filePath, result);
     }
   }
 
