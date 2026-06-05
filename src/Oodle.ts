@@ -104,13 +104,20 @@ function loadLibrary(): koffi.IKoffiLib {
   const packageRoot = path.dirname(__dirname);
 
   // Search order:
-  // 1. libs/ directory under package root (user places DLL here)
-  // 2. Current working directory
-  // 3. OS standard search paths (PATH, system directories)
-  // 4. Node.exe directory
+  // 1. libs/ directory under package root (node_modules/poe-bundle-lib/libs/)
+  // 2. libs/ directory under cwd (user's project root)
+  // 3. Current working directory
+  // 4. OS standard search paths (PATH, system directories)
+  // 5. Node.exe directory
   const bundledDll = path.join(packageRoot, 'libs', dllName);
   if (fs.existsSync(bundledDll)) {
     lib = koffi.load(bundledDll);
+    return lib;
+  }
+
+  const cwdLibsDll = path.join(process.cwd(), 'libs', dllName);
+  if (fs.existsSync(cwdLibsDll)) {
+    lib = koffi.load(cwdLibsDll);
     return lib;
   }
 
@@ -140,6 +147,7 @@ function loadLibrary(): koffi.IKoffiLib {
     throw new Error(
       `Could not find ${dllName}. Searched:\n` +
       `  - ${bundledDll}\n` +
+      `  - ${cwdLibsDll}\n` +
       searchPaths.map(p => `  - ${p}`).join('\n') +
       '\nPlus OS standard search paths (PATH, system directories).'
     );

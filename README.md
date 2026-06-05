@@ -8,7 +8,11 @@ Path of Exile `*.bundle.bin` 文件操作库，[LibGGPK3/LibBundle3](https://git
 npm install poe-bundle-lib
 ```
 
-仅支持 Windows，需要 Node.js >= 20。需自行将 `oo2core.dll` 放到 `node_modules/poe-bundle-lib/libs/` 目录下。
+仅支持 Windows，需要 Node.js >= 20。`oo2core.dll` 可放在以下任一位置：
+
+- `node_modules/poe-bundle-lib/libs/`
+- `<你的项目>/libs/`
+- 项目根目录
 
 ## 用法
 
