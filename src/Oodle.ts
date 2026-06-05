@@ -99,22 +99,16 @@ function loadLibrary(): koffi.IKoffiLib {
   if (lib) return lib;
 
   const dllName = 'oo2core.dll';
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  // package root: one level up from src/ (dev) or dist/ (after build)
+  const packageRoot = path.dirname(__dirname);
 
   // Search order:
-  // 1. DLL bundled with this package (src/oo2core.dll)
+  // 1. libs/ directory under package root (user places DLL here)
   // 2. Current working directory
   // 3. OS standard search paths (PATH, system directories)
   // 4. Node.exe directory
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-  const searchPaths = [
-    __dirname,                    // Bundled DLL (src/oo2core.dll)
-    process.cwd(),                // Current working directory
-    path.dirname(process.execPath), // Node.exe directory
-  ];
-
-  // Try bundled DLL first
-  const bundledDll = path.join(__dirname, dllName);
+  const bundledDll = path.join(packageRoot, 'libs', dllName);
   if (fs.existsSync(bundledDll)) {
     lib = koffi.load(bundledDll);
     return lib;
@@ -128,6 +122,11 @@ function loadLibrary(): koffi.IKoffiLib {
     // Fall through to explicit path search
   }
 
+  const searchPaths = [
+    process.cwd(),                // Current working directory
+    path.dirname(process.execPath), // Node.exe directory
+  ];
+
   let dllPath: string | null = null;
   for (const dir of searchPaths) {
     const candidate = path.join(dir, dllName);
@@ -140,6 +139,7 @@ function loadLibrary(): koffi.IKoffiLib {
   if (!dllPath) {
     throw new Error(
       `Could not find ${dllName}. Searched:\n` +
+      `  - ${bundledDll}\n` +
       searchPaths.map(p => `  - ${p}`).join('\n') +
       '\nPlus OS standard search paths (PATH, system directories).'
     );

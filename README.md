@@ -1,21 +1,21 @@
-# @poe/bundle-lib
+# poe-bundle-lib
 
 Path of Exile `*.bundle.bin` 文件操作库，[LibGGPK3/LibBundle3](https://github.com/aianlinb/LibGGPK3) 的 TypeScript 重写。
 
 ## 安装
 
 ```bash
-npm install @poe/bundle-lib
+npm install poe-bundle-lib
 ```
 
-仅支持 Windows（依赖 `oo2core.dll`），需要 Node.js >= 20。
+仅支持 Windows，需要 Node.js >= 20。`oo2core.dll` 已随包附带，无需额外配置。
 
 ## 用法
 
 ### 读取索引并提取文件
 
 ```ts
-import { Index, ITreeNode } from '@poe/bundle-lib';
+import { Index, ITreeNode } from 'poe-bundle-lib';
 
 const index = new Index('path/to/Bundles2/_.index.bin');
 const root = index.BuildTree();
@@ -30,7 +30,7 @@ Index.Extract(root, (file, data) => {
 ### 获取节点并替换文件
 
 ```ts
-import { Index, ITreeNode } from '@poe/bundle-lib';
+import { Index, ITreeNode } from 'poe-bundle-lib';
 
 const index = new Index('path/to/Bundles2/_.index.bin');
 
@@ -50,7 +50,7 @@ Index.ReplaceFromEntries(index, entries, (file, fullName) => {
 ### 直接操作 Bundle
 
 ```ts
-import { Bundle, BundleRecord } from '@poe/bundle-lib';
+import { Bundle, BundleRecord } from 'poe-bundle-lib';
 
 // 读取
 const bundle = new Bundle('path/to/some.bundle.bin');
@@ -75,12 +75,12 @@ if (file) {
 
 | 子路径 | 内容 |
 |--------|------|
-| `@poe/bundle-lib` | Index、Bundle、节点、记录 |
-| `@poe/bundle-lib/oodle` | Oodle 压缩/解压 API |
-| `@poe/bundle-lib/bundle` | Bundle 类 |
-| `@poe/bundle-lib/index` | Index 类 |
-| `@poe/bundle-lib/records` | BundleRecord、FileRecord |
-| `@poe/bundle-lib/nodes` | 树节点接口和实现 |
+| `poe-bundle-lib` | Index, Bundle, 节点, 记录 |
+| `poe-bundle-lib/oodle` | Oodle 压缩/解压 API |
+| `poe-bundle-lib/bundle` | Bundle 类 |
+| `poe-bundle-lib/index` | Index 类 |
+| `poe-bundle-lib/records` | BundleRecord, FileRecord |
+| `poe-bundle-lib/nodes` | 树节点接口和实现 |
 
 ## License
 
