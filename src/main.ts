@@ -23,7 +23,7 @@ export { FileRecord } from './records/FileRecord.js';
 export { Index } from './Index.js';
 
 // Bundle factory
-export { IBundleFactory } from './IBundleFactory.js';
+export type { IBundleFactory } from './IBundleFactory.js';
 export { DriveBundleFactory } from './DriveBundleFactory.js';
 
 // Nodes

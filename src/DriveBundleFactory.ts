@@ -7,14 +7,13 @@ import type { BundleRecord } from './records/BundleRecord.js';
 /**
  * File system-based bundle factory.
  */
-export class DriveBundleFactory extends IBundleFactory {
+export class DriveBundleFactory implements IBundleFactory {
   BaseDirectory: string;
 
   /**
    * @param baseDirectory - Path to "Bundles2" directory
    */
   constructor(baseDirectory: string) {
-    super();
     this.BaseDirectory = path.resolve(baseDirectory);
     if (!this.BaseDirectory.endsWith(path.sep)) {
       this.BaseDirectory += path.sep;

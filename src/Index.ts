@@ -31,7 +31,7 @@ interface DirectoryRecord {
 /**
  * Memory stream-like container for bundle write operations.
  */
-interface MemoryStream {
+export interface MemoryStream {
   buffer: Buffer;
   length: number;
 }
@@ -371,7 +371,7 @@ export class Index {
     const sortedFiles = [...this._Files.values()].sort((a, b) => {
       const pa = a.Path ?? '';
       const pb = b.Path ?? '';
-      return pa < pb ? -1 : pa > pb ? 1 : 0;
+      return pa.localeCompare(pb);
     });
 
     for (const f of sortedFiles) {
@@ -691,7 +691,7 @@ function MurmurHash64A(data: Buffer, seed: bigint = 0x1337B33Fn): bigint {
   for (let i = 0; i < numChunks; i++) {
     let k = data.readBigUInt64LE(i * 8);
     k = (k * m) & 0xFFFFFFFFFFFFFFFFn;
-    k = k >> BigInt(r);
+    k = k ^ (k >> BigInt(r));
     k = (k * m) & 0xFFFFFFFFFFFFFFFFn;
     h = (h ^ k) & 0xFFFFFFFFFFFFFFFFn;
     h = (h * m) & 0xFFFFFFFFFFFFFFFFn;

@@ -157,6 +157,7 @@ export class Bundle {
    */
   private getLastChunkSize(): number {
     const h = this.privateHeader;
+    if (h.chunkCount === 0) return h.uncompressedSize;
     return h.uncompressedSize - (h.chunkSize * (h.chunkCount - 1));
   }
 
@@ -271,7 +272,7 @@ export class Bundle {
     for (let i = start; i < end; i++) {
       if (cached && this.cacheTable![i]) {
         compressedPos += chunkSizes[i];
-        writePos += h.chunkSize;
+        writePos += (i === lastChunkIdx) ? this.getLastChunkSize() : h.chunkSize;
         continue;
       }
 
@@ -427,8 +428,8 @@ function writeHeaderToBuffer(h: BundleHeader, buf?: Buffer): Buffer {
   b.writeInt32LE(h.headSize, 8);
   b.writeInt32LE(h.compressor, 12);
   b.writeInt32LE(h.unknown, 16);
-  b.writeBigInt64LE(BigInt(h.uncompressedSizeLong ?? 0n), 20);
-  b.writeBigInt64LE(BigInt(h.compressedSizeLong ?? 0n), 28);
+  b.writeBigInt64LE(h.uncompressedSizeLong ?? 0n, 20);
+  b.writeBigInt64LE(h.compressedSizeLong ?? 0n, 28);
   b.writeInt32LE(h.chunkCount, 36);
   b.writeInt32LE(h.chunkSize, 40);
   b.writeInt32LE(h.unknown3 ?? 0, 44);

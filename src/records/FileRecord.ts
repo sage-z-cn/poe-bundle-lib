@@ -1,14 +1,6 @@
-import type { Index } from '../Index.js';
+import type { Index, MemoryStream } from '../Index.js';
 import type { Bundle } from '../Bundle.js';
 import type { BundleRecord } from './BundleRecord.js';
-
-/**
- * Memory stream-like container for bundle write operations.
- */
-interface MemoryStream {
-  buffer: Buffer;
-  length: number;
-}
 
 /**
  * FileRecord - represents a file entry in the index.
