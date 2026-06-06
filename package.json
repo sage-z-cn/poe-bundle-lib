@@ -1,7 +1,7 @@
 {
   "name": "poe-bundle-lib",
-  "version": "1.0.2",
-  "description": "Library for *.bundle.bin files of Path of Exile (Rewrite of LibBundle3)",
+  "version": "1.2.0",
+  "description": "Library for *.bundle.bin and Content.ggpk files of Path of Exile (Rewrite of LibGGPK3/LibBundle3)",
   "type": "module",
   "main": "dist/main.js",
   "types": "dist/main.d.ts",
@@ -29,6 +29,18 @@
     "./nodes": {
       "types": "./dist/nodes/index.d.ts",
       "import": "./dist/nodes/index.js"
+    },
+    "./ggpk": {
+      "types": "./dist/ggpk/GGPK.d.ts",
+      "import": "./dist/ggpk/GGPK.js"
+    },
+    "./ggpk/records": {
+      "types": "./dist/ggpk/records/index.d.ts",
+      "import": "./dist/ggpk/records/index.js"
+    },
+    "./bundled": {
+      "types": "./dist/bundled/BundledGGPK.d.ts",
+      "import": "./dist/bundled/BundledGGPK.js"
     }
   },
   "files": [

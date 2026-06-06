@@ -32,3 +32,15 @@ export { IDirectoryNode } from './nodes/IDirectoryNode.js';
 export { IFileNode } from './nodes/IFileNode.js';
 export { DirectoryNode } from './nodes/DirectoryNode.js';
 export { FileNode } from './nodes/FileNode.js';
+
+// GGPK
+export { GGPK } from './ggpk/GGPK.js';
+export { GGPKBrokenError } from './ggpk/GGPKBrokenError.js';
+export { GGPKRecord } from './ggpk/records/GGPKRecord.js';
+export { FreeRecord } from './ggpk/records/FreeRecord.js';
+export { TreeNode } from './ggpk/records/TreeNode.js';
+export { BaseRecord } from './ggpk/records/BaseRecord.js';
+
+// Bundled GGPK
+export { BundledGGPK } from './bundled/BundledGGPK.js';
+export { GGPKBundleFactory } from './bundled/GGPKBundleFactory.js';

@@ -264,10 +264,16 @@ export class Index {
     if (this._BundleToWrite) {
       const ms = this._BundleStreamToWrite!;
       this._BundleToWrite.Save(ms.buffer.subarray(0, ms.length));
-      // Write custom bundle to disk
+      // Write custom bundle data
       if (this._BundleToWrite.Record) {
-        const customPath = (this.bundleFactory as DriveBundleFactory).BaseDirectory + this._BundleToWrite.Record.Path;
-        fs.writeFileSync(customPath, this._BundleToWrite.getFileBuffer());
+        const buf = this._BundleToWrite.getFileBuffer();
+        if (this.bundleFactory instanceof DriveBundleFactory) {
+          const customPath = this.bundleFactory.BaseDirectory + this._BundleToWrite.Record.Path;
+          fs.writeFileSync(customPath, buf);
+        } else if (this.bundleFactory.WriteBundleData) {
+          // GGPKBundleFactory: 写入 GGPK 内部 FileRecord
+          this.bundleFactory.WriteBundleData(this._BundleToWrite.Record.Path, buf);
+        }
       }
       this._BundleToWrite.Dispose();
       this._BundleToWrite = null;
