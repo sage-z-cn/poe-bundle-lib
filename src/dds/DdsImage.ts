@@ -138,12 +138,14 @@ export class DdsImage {
       formatName = dxgiFormatName(dxgiFormat);
       srgb = dxgiIsSrgb(dxgiFormat);
       dataOffset += 20;
-      // The legacy pixel-format masks are meaningless for DX10 files; use the
-      // standard R8G8B8A8 layout (BGRA byte order in memory) for uncompressed.
+      // The legacy pixel-format masks are meaningless for DX10 files. Per the
+      // DXGI spec the channel-name order of R8G8B8A8 is the memory byte order
+      // (byte 0 = R, byte 3 = A); the B,G,R,A byte order belongs to the legacy
+      // D3DFMT DWORD layout only.
       if (format === DdsFormat.RGBA8_Uncompressed) {
-        masks.r = 0x00ff0000;
+        masks.r = 0x000000ff;
         masks.g = 0x0000ff00;
-        masks.b = 0x000000ff;
+        masks.b = 0x00ff0000;
         masks.a = 0xff000000;
       }
     } else if ((pfFlags & DDPF_FOURCC) !== 0) {
@@ -234,7 +236,8 @@ export class DdsImage {
       return new RgbaSurface(w, h, pixels);
     }
 
-    // Uncompressed RGBA (BGRA byte order in memory, channels picked via masks)
+    // Uncompressed RGBA (channel order per the pixel-format masks: legacy
+    // headers use the BGRA DWORD layout, DX10 headers the DXGI RGBA order)
     const pixels = new Uint8Array(w * h * 4);
     const aMask = this._masks.a;
     for (let p = 0; p < w * h; p++) {
@@ -277,7 +280,7 @@ export class DdsImage {
     }
 
     const out = Buffer.from(this._buffer); // copy
-    writeRgbaAsBgra(out, this._mipOffsets[mip], pixels);
+    writeRgbaMasked(out, this._mipOffsets[mip], pixels, this._masks);
 
     if (regenerateMips && mip === 0) {
       // Rebuild every subsequent mip from the edited mip 0
@@ -289,7 +292,7 @@ export class DdsImage {
         if (src.width !== mw || src.height !== mh || this._mipSizes[m] !== mw * mh * 4) {
           throw new Error(`Mip ${m} layout mismatch: expected ${mw}x${mh}`);
         }
-        writeRgbaAsBgra(out, this._mipOffsets[m], src.pixels);
+        writeRgbaMasked(out, this._mipOffsets[m], src.pixels, this._masks);
       }
     }
 
@@ -332,14 +335,35 @@ function extractChannel(pixel: number, mask: number): number {
 }
 
 /**
- * Write row-major RGBA8888 pixel data into a DDS buffer at `offset`,
- * converting to the BGRA byte order used by uncompressed DDS layouts.
+ * Bit position of the lowest set bit of a contiguous channel mask.
  */
-function writeRgbaAsBgra(target: Buffer, offset: number, pixels: Uint8Array): void {
+function channelShift(mask: number): number {
+  let shift = 0;
+  while (((mask >>> shift) & 1) === 0 && shift < 32) shift++;
+  return shift;
+}
+
+/**
+ * Write row-major RGBA8888 pixel data into a DDS buffer at `offset`, packing
+ * each channel into the bit positions described by the pixel-format masks.
+ * Handles both the legacy D3DFMT DWORD layout (B,G,R,A byte order, mask
+ * R=0x00ff0000) and the DXGI R8G8B8A8 order (byte 0 = R, mask R=0x000000ff).
+ * A zero alpha mask (R8G8B8X8) writes 255 into the top byte, matching the
+ * common writer convention for the unused channel.
+ */
+function writeRgbaMasked(target: Buffer, offset: number, pixels: Uint8Array, masks: { r: number; g: number; b: number; a: number }): void {
+  const rs = masks.r === 0 ? -1 : channelShift(masks.r);
+  const gs = masks.g === 0 ? -1 : channelShift(masks.g);
+  const bs = masks.b === 0 ? -1 : channelShift(masks.b);
+  const as = masks.a === 0 ? 24 : channelShift(masks.a); // absent alpha -> opaque
+  const av = masks.a === 0 ? 255 : 0;
+
   for (let i = 0; i < pixels.length; i += 4) {
-    target[offset + i] = pixels[i + 2]; // B <- B
-    target[offset + i + 1] = pixels[i + 1]; // G
-    target[offset + i + 2] = pixels[i]; // R <- R
-    target[offset + i + 3] = pixels[i + 3]; // A
+    let px = 0;
+    if (rs >= 0) px |= pixels[i] << rs;
+    if (gs >= 0) px |= pixels[i + 1] << gs;
+    if (bs >= 0) px |= pixels[i + 2] << bs;
+    px |= (pixels[i + 3] | av) << as;
+    target.writeUInt32LE(px >>> 0, offset + i);
   }
 }

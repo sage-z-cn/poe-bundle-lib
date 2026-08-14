@@ -23,10 +23,6 @@
   - 命令行示例：`examples/dds-inspect.mjs`（格式侦察/预览导出）、`examples/dds-add-text.mjs`（加文字）
 - 新增依赖 `@napi-rs/canvas`（文字栅格化与 PNG 导出，含 Windows 预编译二进制）
 
-### 修复
-
-- DDS DX10 扩展头的未压缩格式沿用 legacy 空 mask 导致解码死循环的问题（现回退到标准 R8G8B8A8 mask 布局）
-
 ### 说明
 
 - BC1/BC2/BC3 仅支持解码与查看，编辑回写暂不支持（抛出 'not supported yet'）；BC4-BC7 暂不支持

@@ -230,7 +230,7 @@ node examples/dds-add-text.mjs map1.dds out.dds "测试" --right 5% --bottom 5% 
 - **BundledGGPK**：`Dispose()` 自动将修改写回 GGPK 内的 `_.index.bin`
 - **GGPK 空闲空间**：`firstFreeRecordOffset` 损坏时自动重置为空链表，新数据追加到文件末尾
 - **哈希保护**：`renewHashes()` 默认不更新 root 及直接子目录的哈希，避免游戏检测到修改后回滚
-- **DDS 编辑**：仅支持编辑未压缩 `R8G8B8A8` 的 DDS（BC1/BC2/BC3 仅可解码/查看，BC4-BC7 不支持）；cubemap、3D 纹理和纹理数组会被解析器拒绝。canvas 预乘 alpha 会使半透明像素产生 ±1 舍入（完全不透明像素无损）。依赖 `@napi-rs/canvas`（已作为依赖安装，含 Windows 二进制）
+- **DDS 编辑**：仅支持编辑未压缩 `R8G8B8A8` 的 DDS（BC1/BC2/BC3 仅可解码/查看，BC4-BC7 不支持）；cubemap、3D 纹理和纹理数组会被解析器拒绝。文字手工合成在未触碰的底图像素上：文字墨迹之外逐字节不变（含半透明像素）；文字 AA 边缘因 canvas 反预乘可能有 ±1 舍入。DX10 头按 DXGI 通道序（R 在第 0 字节），legacy 头按 D3DFMT DWORD 布局（B,G,R,A）。依赖 `@napi-rs/canvas`（已作为依赖安装，含 Windows 二进制）
 
 ## License
 

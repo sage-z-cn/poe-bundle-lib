@@ -53,6 +53,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "test": "node test/dds.test.mjs",
     "prepublishOnly": "npm run build",
     "release": "npm run build && npm publish"
   },

@@ -236,7 +236,7 @@ node examples/dds-add-text.mjs map1.dds out.dds "Hello" --right 5% --bottom 5% -
 - **BundledGGPK**: `Dispose()` automatically writes changes back to `_.index.bin` inside the GGPK
 - **GGPK free space**: If `firstFreeRecordOffset` is corrupted, it resets to an empty linked list and new data is appended to the end of the file
 - **Hash protection**: `renewHashes()` does not update hashes for root and its direct children by default, to prevent the game from detecting modifications and rolling back
-- **DDS editing**: only uncompressed `R8G8B8A8` DDS can be edited (BC1/BC2/BC3 are decode/inspect only, BC4-BC7 unsupported). Cubemaps, 3D textures and texture arrays are rejected by the parser. Canvas premultiplied alpha may cause ±1 rounding on semi-transparent pixels (fully opaque pixels are lossless). Requires `@napi-rs/canvas` (installed as a dependency, Windows binary included)
+- **DDS editing**: only uncompressed `R8G8B8A8` DDS can be edited (BC1/BC2/BC3 are decode/inspect only, BC4-BC7 unsupported). Cubemaps, 3D textures and texture arrays are rejected by the parser. Text is composited manually over the untouched base pixels: everything outside the text ink stays byte-identical (including translucent pixels); antialiased text edges may carry ±1 rounding from the canvas un-premultiply. DX10 headers use the DXGI channel order (R in byte 0), legacy headers the D3DFMT DWORD layout (B,G,R,A). Requires `@napi-rs/canvas` (installed as a dependency, Windows binary included)
 
 ## License
 

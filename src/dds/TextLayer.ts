@@ -1,4 +1,4 @@
-import { createCanvas, ImageData } from '@napi-rs/canvas';
+import { createCanvas } from '@napi-rs/canvas';
 import type { SKRSContext2D } from '@napi-rs/canvas';
 import { RgbaSurface } from './RgbaSurface.js';
 
@@ -255,32 +255,52 @@ export type AddTextInput = AddTextOptions | AddTextOptions[];
  * against the full image (entries may overlap). An empty array returns a
  * copy of the input.
  *
+ * The text is drawn on a fully transparent canvas layer which is then
+ * source-over composited manually: round-tripping the base image through
+ * putImageData/getImageData would rewrite every translucent base pixel
+ * (premultiplied-alpha rounding). With this approach pixels outside the
+ * text ink stay byte-identical to the input (including translucent ones);
+ * antialiased text edges may differ by +-1 from a native composition due to
+ * the un-premultiplication performed by getImageData.
+ *
  * @param surface - Base image the text is drawn over
  * @param options - Text content, position, style (single entry or array)
  */
 export function applyText(surface: RgbaSurface, options: AddTextInput): RgbaSurface {
   const entries = Array.isArray(options) ? options : [options];
+  if (entries.length === 0) {
+    return new RgbaSurface(surface.width, surface.height, new Uint8Array(surface.pixels));
+  }
 
+  // Text layer: a fully transparent canvas (no putImageData of the base image)
   const canvas = createCanvas(surface.width, surface.height);
   const ctx = canvas.getContext('2d');
-  ctx.putImageData(
-    new ImageData(new Uint8ClampedArray(surface.pixels.buffer, surface.pixels.byteOffset, surface.pixels.length), surface.width, surface.height),
-    0,
-    0,
-  );
-
   for (const entry of entries) {
     drawTextBlock(ctx, surface.width, surface.height, entry);
   }
+  const text = ctx.getImageData(0, 0, surface.width, surface.height).data;
 
-  const out = ctx.getImageData(0, 0, surface.width, surface.height);
-  // Copy: the underlying buffer of getImageData data may be backed by native memory
-  return new RgbaSurface(surface.width, surface.height, new Uint8Array(out.data));
+  // Manual source-over composition of the text layer (straight alpha) onto
+  // the untouched base pixels: outA = srcA + dstA*(1-srcA/255);
+  // outC = (srcC*srcA + dstC*dstA*(1-srcA/255)) / outA
+  const out = new Uint8Array(surface.pixels);
+  for (let i = 0; i < out.length; i += 4) {
+    const srcA = text[i + 3];
+    if (srcA === 0) continue; // no text ink: base pixel stays byte-identical
+    const dstA = out[i + 3];
+    const inv = 1 - srcA / 255;
+    const outA = srcA + dstA * inv; // srcA > 0 keeps outA > 0
+    out[i] = Math.round((text[i] * srcA + out[i] * dstA * inv) / outA);
+    out[i + 1] = Math.round((text[i + 1] * srcA + out[i + 1] * dstA * inv) / outA);
+    out[i + 2] = Math.round((text[i + 2] * srcA + out[i + 2] * dstA * inv) / outA);
+    out[i + 3] = Math.round(outA);
+  }
+  return new RgbaSurface(surface.width, surface.height, out);
 }
 
 /**
  * Draw one text block onto an existing canvas context (used by
- * {@link applyText}; the caller manages putImageData/getImageData).
+ * {@link applyText}; the caller manages getImageData of the text layer).
  *
  * @param ctx - Canvas context to draw on
  * @param width - Surface width in pixels

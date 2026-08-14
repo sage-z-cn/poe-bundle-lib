@@ -75,7 +75,7 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-if (positional.length < 3 && groups[0].text === undefined) {
+if (positional.length < 2) {
   console.error('Usage: node examples/dds-add-text.mjs <in.dds> <out.dds> "text" [x y fontSize] [--left L] [--right R] [--top T] [--bottom B] [--fontSize S] [--center both|horizontal|vertical] [--color 0xRRGGBBAA] [--font name] [--text "more text" ...] [--png]');
   process.exit(1);
 }

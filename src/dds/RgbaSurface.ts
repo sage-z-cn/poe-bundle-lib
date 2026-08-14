@@ -24,7 +24,9 @@ export class RgbaSurface {
    */
   pixel(x: number, y: number): number {
     const i = (y * this.width + x) * 4;
-    return (this.pixels[i] << 24) | (this.pixels[i + 1] << 16) | (this.pixels[i + 2] << 8) | this.pixels[i + 3];
+    // >>> 0 keeps the packed value an unsigned 32-bit number (R >= 128 would
+    // otherwise produce a negative int32 via << 24)
+    return ((this.pixels[i] << 24) | (this.pixels[i + 1] << 16) | (this.pixels[i + 2] << 8) | this.pixels[i + 3]) >>> 0;
   }
 
   /**
