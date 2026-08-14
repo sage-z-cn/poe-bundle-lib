@@ -139,6 +139,75 @@ const { compressedSize, output } = Compress(inputBuffer);
 const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 ```
 
+### DDS 贴图编辑
+
+直接编辑 DDS 贴图，例如给地图图标添加文字。未压缩 `R8G8B8A8` 格式的编辑是无损的（其余 mip 级由编辑后的 mip0 经 2x2 box 下采样重建）：
+
+```ts
+import { AddText } from 'poe-bundle-lib/dds';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+// 编辑磁盘上的 DDS 文件
+const dds = readFileSync('map1.dds');
+const edited = AddText(dds, {
+  text: '测试',          // 支持 CJK，'\n' 多行
+  // 定位（全部支持像素数字或 'N%' 百分比字符串）：
+  right: '5%',          // CSS 式锚定：文字块右边缘 = 宽度 - 5%
+  bottom: '5%',         // 文字块下边缘 = 高度 - 5%
+  // left / top 同理（文字块左/上边缘锚定），如左上角：left: 8, top: 8
+  // x: 8, y: 8,        // 绝对定位：文字绘制起点（与 left/top 等价）
+  fontSize: '20%',      // 像素数字、图像高度百分比，或 'auto'
+                        // （'auto' = 自动选取不超出图片的最大字号）
+  // center: 'both',     // 可选：文字块居中（'horizontal'/'vertical' 可与
+  //                     // 另一轴的边距锚定组合，如 center 'horizontal' + bottom '5%'）
+  // 同轴优先级：left > right > x（默认 0），top > bottom > y（默认 0）
+  font: 'Microsoft YaHei',  // 可选，默认字体
+  color: 0xFF0000FF,    // 0xRRGGBBAA，默认不透明白色
+  bold: false,          // 可选
+  regenerateMips: true, // 可选，编辑后重建 mip 1..n
+});
+writeFileSync('map1-out.dds', edited);
+```
+
+也可以一次传入多组文字（数组）——按顺序绘制在同一画布上（后画的覆盖先画的，
+允许重叠；每组的定位与 'auto' 预算各自相对全图独立解算）：
+
+```ts
+const edited = AddText(dds, [
+  { text: '左上', left: 5, top: 5, fontSize: 16, color: 0xFF0000FF },
+  { text: '右下', right: '5%', bottom: '5%', fontSize: '16%', color: 0x00FF00FF },
+  { text: '居中', center: 'both', fontSize: 'auto', color: 0xFFFF00FF },
+]);
+```
+
+也可以直接写回游戏 bundle：
+
+```ts
+import { AddText } from 'poe-bundle-lib/dds';
+
+const file = index.TryGetFile('Art/Textures/map1.dds');
+if (file) {
+  // x/y（像素起点）与 left/right/top/bottom（百分比）可互换使用
+  file.Write(AddText(file.Read(), { text: '测试', x: 8, y: 8, fontSize: 16, color: 0xFF0000FF }));
+}
+index.Save();  // 持久化修改
+```
+
+同时也导出底层模块：`DdsImage`（解析 DDS/DX10 头、解码 mip 为 RGBA）、`RgbaSurface`（像素访问 + `toPng()` 预览导出）、`applyText`、`downsample2x2`。
+
+命令行示例：
+
+```bash
+# 查看 DDS 格式 / mip 布局，可选导出某级 mip 为 PNG
+node examples/dds-inspect.mjs map1.dds --png 0
+
+# 添加文字并输出新 DDS，--png 另存预览图
+node examples/dds-add-text.mjs map1.dds out.dds "测试" 8 8 16 --color 0xFF0000FF --png
+
+# CSS 式锚定（右下角，20% 字号）
+node examples/dds-add-text.mjs map1.dds out.dds "测试" --right 5% --bottom 5% --fontSize 20% --png
+```
+
 ## 导出
 
 | 子路径 | 内容 |
@@ -152,6 +221,7 @@ const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 | `poe-bundle-lib/ggpk` | GGPK 类 |
 | `poe-bundle-lib/ggpk/records` | GGPKRecord, DirectoryRecord, FileRecord, FreeRecord, TreeNode, BaseRecord |
 | `poe-bundle-lib/bundled` | BundledGGPK, GGPKBundleFactory |
+| `poe-bundle-lib/dds` | AddText, applyText, AddTextOptions, AddTextInput, resolveTextLayout, DdsImage, DdsFormat, RgbaSurface, downsample2x2, BC1/BC2/BC3 解码器 |
 
 ## 注意事项
 
@@ -160,6 +230,7 @@ const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 - **BundledGGPK**：`Dispose()` 自动将修改写回 GGPK 内的 `_.index.bin`
 - **GGPK 空闲空间**：`firstFreeRecordOffset` 损坏时自动重置为空链表，新数据追加到文件末尾
 - **哈希保护**：`renewHashes()` 默认不更新 root 及直接子目录的哈希，避免游戏检测到修改后回滚
+- **DDS 编辑**：仅支持编辑未压缩 `R8G8B8A8` 的 DDS（BC1/BC2/BC3 仅可解码/查看，BC4-BC7 不支持）；cubemap、3D 纹理和纹理数组会被解析器拒绝。canvas 预乘 alpha 会使半透明像素产生 ±1 舍入（完全不透明像素无损）。依赖 `@napi-rs/canvas`（已作为依赖安装，含 Windows 二进制）
 
 ## License
 

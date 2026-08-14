@@ -139,6 +139,81 @@ const { compressedSize, output } = Compress(inputBuffer);
 const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 ```
 
+### DDS Texture Editing
+
+Edit DDS textures in place — for example, adding text to a map icon. Editing is
+lossless for uncompressed `R8G8B8A8` textures (all mips are rebuilt from the
+edited base image via 2x2 box downsampling):
+
+```ts
+import { AddText } from 'poe-bundle-lib/dds';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+// Edit a DDS file on disk
+const dds = readFileSync('map1.dds');
+const edited = AddText(dds, {
+  text: 'Hello',        // supports CJK and '\n' multi-line
+  // Positioning (all accept pixel numbers or 'N%' strings):
+  right: '5%',          // CSS-like anchoring: block right edge = width - 5%
+  bottom: '5%',         // block bottom edge = height - 5%
+  // left / top work the same way, e.g. top-left corner: left: 8, top: 8
+  // x: 8, y: 8,        // absolute positioning: draw origin of the text
+  fontSize: '20%',      // pixels, percent of image height, or 'auto'
+                        // ('auto' = largest size that fits without overflow)
+  // center: 'both',     // optional: center the block ('horizontal'/'vertical'
+  //                     // can be combined with anchoring on the other axis)
+  // Per-axis priority: left > right > x (default 0), top > bottom > y (default 0)
+  font: 'Microsoft YaHei',  // optional, default font
+  color: 0xFF0000FF,    // 0xRRGGBBAA, default opaque white
+  bold: false,          // optional
+  regenerateMips: true, // optional, rebuild mip 1..n after editing
+});
+writeFileSync('map1-out.dds', edited);
+```
+
+Multiple text blocks can be drawn in one pass by passing an array — entries
+are drawn in order on the same canvas (later ones paint over earlier ones,
+overlaps are allowed; each entry's positioning and 'auto' budget is resolved
+independently against the full image):
+
+```ts
+const edited = AddText(dds, [
+  { text: 'TL', left: 5, top: 5, fontSize: 16, color: 0xFF0000FF },
+  { text: 'BR', right: '5%', bottom: '5%', fontSize: '16%', color: 0x00FF00FF },
+  { text: 'mid', center: 'both', fontSize: 'auto', color: 0xFFFF00FF },
+]);
+```
+
+Or write it straight back into the game's bundle:
+
+```ts
+import { AddText } from 'poe-bundle-lib/dds';
+
+const file = index.TryGetFile('Art/Textures/map1.dds');
+if (file) {
+  // x/y (pixel origin) and left/right/top/bottom (percentages) are interchangeable
+  file.Write(AddText(file.Read(), { text: 'Hello', x: 8, y: 8, fontSize: 16, color: 0xFF0000FF }));
+}
+index.Save();  // persist the change
+```
+
+Lower-level building blocks are also exported: `DdsImage` (parse and inspect
+DDS/DX10 headers, decode a mip to RGBA), `RgbaSurface` (pixel access + PNG
+preview via `toPng()`), `applyText`, `downsample2x2`.
+
+Command-line examples:
+
+```bash
+# Inspect format / mip layout of a DDS file, optionally export a mip as PNG
+node examples/dds-inspect.mjs map1.dds --png 0
+
+# Add text and write a new DDS, --png also saves a preview image
+node examples/dds-add-text.mjs map1.dds out.dds "Hello" 8 8 16 --color 0xFF0000FF --png
+
+# CSS-like anchoring (bottom-right corner, 20% font size)
+node examples/dds-add-text.mjs map1.dds out.dds "Hello" --right 5% --bottom 5% --fontSize 20% --png
+```
+
 ## Exports
 
 | Subpath | Contents |
@@ -152,6 +227,7 @@ const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 | `poe-bundle-lib/ggpk` | GGPK class |
 | `poe-bundle-lib/ggpk/records` | GGPKRecord, DirectoryRecord, FileRecord, FreeRecord, TreeNode, BaseRecord |
 | `poe-bundle-lib/bundled` | BundledGGPK, GGPKBundleFactory |
+| `poe-bundle-lib/dds` | AddText, applyText, AddTextOptions, AddTextInput, resolveTextLayout, DdsImage, DdsFormat, RgbaSurface, downsample2x2, BC1/BC2/BC3 decoders |
 
 ## Notes
 
@@ -160,6 +236,7 @@ const decompressed = Decompress(output, Buffer.alloc(uncompressedSize));
 - **BundledGGPK**: `Dispose()` automatically writes changes back to `_.index.bin` inside the GGPK
 - **GGPK free space**: If `firstFreeRecordOffset` is corrupted, it resets to an empty linked list and new data is appended to the end of the file
 - **Hash protection**: `renewHashes()` does not update hashes for root and its direct children by default, to prevent the game from detecting modifications and rolling back
+- **DDS editing**: only uncompressed `R8G8B8A8` DDS can be edited (BC1/BC2/BC3 are decode/inspect only, BC4-BC7 unsupported). Cubemaps, 3D textures and texture arrays are rejected by the parser. Canvas premultiplied alpha may cause ±1 rounding on semi-transparent pixels (fully opaque pixels are lossless). Requires `@napi-rs/canvas` (installed as a dependency, Windows binary included)
 
 ## License
 
