@@ -12,7 +12,7 @@ import type { IDirectoryNode } from './nodes/IDirectoryNode.js';
 import { DriveBundleFactory } from './DriveBundleFactory.js';
 import type { IBundleFactory } from './IBundleFactory.js';
 
-const CUSTOM_BUNDLE_BASE_PATH = 'LibGGPK3/';
+const DEFAULT_CUSTOM_BUNDLE_BASE_PATH = 'LibGGPK3/';
 
 /**
  * Directory record struct (20 bytes):
@@ -57,7 +57,39 @@ export class Index {
 
   _BundleStreamToWrite: MemoryStream | null = null;
 
+  /**
+   * Internal: set by FileRecord.Write/Redirect when the index is modified.
+   * Hosts (e.g. BundledGGPK) check this to skip unnecessary write-backs.
+   */
+  _Dirty: boolean = false;
+
   MaxBundleSize: number = 200 * 1024 * 1024;
+
+  private _customBundleBasePath: string = DEFAULT_CUSTOM_BUNDLE_BASE_PATH;
+
+  /**
+   * Path prefix (ending with `/`) identifying custom bundles created by this
+   * library. Bundles whose path starts with this prefix are treated as
+   * custom: they are reused for new writes ({@link GetBundleToWrite}) and
+   * removed by {@link Save} when left empty.
+   *
+   * Defaults to `LibGGPK3/` (same as the original C# LibBundle3). Set via
+   * the `customBundleBasePath` constructor option or this setter; a trailing
+   * `/` is appended automatically, an empty value resets to the default.
+   *
+   * @remarks Changing this after construction only affects future matching
+   * and newly created bundles — it does not rescan bundles already collected
+   * under the previous prefix. Prefer the constructor option when opening an
+   * index that was built with a non-default prefix.
+   */
+  get CustomBundleBasePath(): string { return this._customBundleBasePath; }
+  set CustomBundleBasePath(value: string) {
+    if (!value) {
+      this._customBundleBasePath = DEFAULT_CUSTOM_BUNDLE_BASE_PATH;
+    } else {
+      this._customBundleBasePath = value.endsWith('/') ? value : value + '/';
+    }
+  }
 
   private root: DirectoryNode | null = null;
 
@@ -76,6 +108,21 @@ export class Index {
   get Files(): Map<bigint, FileRecord> { return this._Files; }
 
   /**
+   * Whether the index has been modified (via FileRecord.Write/Redirect) since
+   * load or since the last {@link MarkClean}. Hosts like {@link BundledGGPK}
+   * use this to skip writing the index back for read-only sessions.
+   *
+   * @remarks Not cleared by {@link Save} — the serialized bytes still need to
+   * be consumed by the host. Call {@link MarkClean} after a successful write-back.
+   */
+  get Dirty(): boolean { return this._Dirty; }
+
+  /**
+   * Mark all modifications as persisted; resets {@link Dirty}.
+   */
+  MarkClean(): void { this._Dirty = false; }
+
+  /**
    * Root node of the tree (lazy-initialized).
    */
   get Root(): DirectoryNode {
@@ -90,8 +137,12 @@ export class Index {
    * @param source - File path or Buffer
    * @param options - Options for parsing
    */
-  constructor(source: string | Buffer, options: { parsePaths?: boolean; bundleFactory?: IBundleFactory } = {}) {
-    const { parsePaths = true, bundleFactory = null } = options;
+  constructor(source: string | Buffer, options: { parsePaths?: boolean; bundleFactory?: IBundleFactory; customBundleBasePath?: string } = {}) {
+    const { parsePaths = true, bundleFactory = null, customBundleBasePath } = options;
+
+    if (customBundleBasePath) {
+      this.CustomBundleBasePath = customBundleBasePath;
+    }
 
     this.bundleFactory = bundleFactory ?? (
       typeof source === 'string'
@@ -143,7 +194,7 @@ export class Index {
       offset += 4;
 
       this._Bundles[i] = new BundleRecord(pathStr, uncompressedSize, this, i);
-      if (pathStr.startsWith(CUSTOM_BUNDLE_BASE_PATH)) {
+      if (pathStr.startsWith(this._customBundleBasePath)) {
         this.customBundles.push(this._Bundles[i]);
       }
     }
@@ -256,29 +307,44 @@ export class Index {
   }
 
   /**
+   * Compress the pending custom bundle ({@link _BundleToWrite}) and persist it
+   * through the bundle factory, then reset the pending write state.
+   * No-op when there is no pending bundle.
+   *
+   * Called by {@link Save} and by `FileRecord.Write` when the in-memory bundle
+   * reaches {@link MaxBundleSize} — both paths must persist the compressed data,
+   * otherwise the index would reference bundles that were never written.
+   */
+  FlushBundleToWrite(): void {
+    const b = this._BundleToWrite;
+    if (!b) return;
+    const ms = this._BundleStreamToWrite!;
+    b.Save(ms.buffer.subarray(0, ms.length));
+    // Write custom bundle data.
+    // Skip the factory write when Bundle.Save already wrote to the bundle's
+    // own file (reused disk-backed custom bundle) — avoids writing 200MB twice.
+    if (b.Record && !b.HasFilePath) {
+      const buf = b.getFileBuffer();
+      if (this.bundleFactory instanceof DriveBundleFactory) {
+        const customPath = this.bundleFactory.BaseDirectory + b.Record.Path;
+        fs.writeFileSync(customPath, buf);
+      } else if (this.bundleFactory.WriteBundleData) {
+        // GGPKBundleFactory: 写入 GGPK 内部 FileRecord
+        this.bundleFactory.WriteBundleData(b.Record.Path, buf);
+      }
+    }
+    b.Dispose();
+    this._BundleToWrite = null;
+    this._BundleStreamToWrite = null;
+  }
+
+  /**
    * Save the _.index.bin file.
    * @param compressor - Compressor to use, defaults to Mermaid
    * @param compressionLevel - Compression level to use
    */
   Save(compressor: Compressor = Compressor.Mermaid, compressionLevel: CompressionLevel = CompressionLevel.Normal): void {
-    if (this._BundleToWrite) {
-      const ms = this._BundleStreamToWrite!;
-      this._BundleToWrite.Save(ms.buffer.subarray(0, ms.length));
-      // Write custom bundle data
-      if (this._BundleToWrite.Record) {
-        const buf = this._BundleToWrite.getFileBuffer();
-        if (this.bundleFactory instanceof DriveBundleFactory) {
-          const customPath = this.bundleFactory.BaseDirectory + this._BundleToWrite.Record.Path;
-          fs.writeFileSync(customPath, buf);
-        } else if (this.bundleFactory.WriteBundleData) {
-          // GGPKBundleFactory: 写入 GGPK 内部 FileRecord
-          this.bundleFactory.WriteBundleData(this._BundleToWrite.Record.Path, buf);
-        }
-      }
-      this._BundleToWrite.Dispose();
-      this._BundleToWrite = null;
-      this._BundleStreamToWrite = null;
-    }
+    this.FlushBundleToWrite();
 
     this.ensureNotDisposed();
 
@@ -297,6 +363,12 @@ export class Index {
     // Re-index bundle indices after removal
     for (let i = 0; i < this._Bundles.length; i++) {
       this._Bundles[i].BundleIndex = i;
+    }
+
+    // Removing empty custom bundles changes the serialized index — mark dirty
+    // so hosts (e.g. BundledGGPK) write the cleaned index back on dispose
+    if (removed.length > 0) {
+      this._Dirty = true;
     }
 
     // Serialize
@@ -443,11 +515,11 @@ export class Index {
     }
 
     if (!b) {
-      let bundlePath = CUSTOM_BUNDLE_BASE_PATH + this.customBundles.length;
+      let bundlePath = this._customBundleBasePath + this.customBundles.length;
       if (this.customBundles.some(br => br._Path === bundlePath)) {
         for (let i = 0; i < this.customBundles.length; i++) {
-          if (!this.customBundles.some(br => br._Path === CUSTOM_BUNDLE_BASE_PATH + i)) {
-            bundlePath = CUSTOM_BUNDLE_BASE_PATH + i;
+          if (!this.customBundles.some(br => br._Path === this._customBundleBasePath + i)) {
+            bundlePath = this._customBundleBasePath + i;
             break;
           }
         }

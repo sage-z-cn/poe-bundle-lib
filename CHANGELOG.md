@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本管理遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-08-14
+
+### 修复
+
+- `FileRecord.Write` 累计待写数据超过 `MaxBundleSize`（默认 200MB）自动切分 Bundle 时只压缩了内存 Bundle、未持久化，导致最终 `Index.Save()` 写出的索引引用从未落盘的数据，生成损坏补丁。现将该逻辑抽为 `Index.FlushBundleToWrite()`（压缩 + 通过工厂持久化到磁盘 / GGPK），切分路径与 `Save()` 路径复用同一实现
+- `BundledGGPK.Dispose()` 即使只读会话也会把整个 `_.index.bin` 写回 GGPK。新增 `Index.Dirty` / `Index.MarkClean()` 脏标记（由 `FileRecord.Write` / `Redirect` 置位），`saveIndex()` 仅在索引被修改时写回；`Index.Save()` 清理空 custom bundle 后同样置位，保证清理结果不丢失
+- 复用磁盘上已有 custom bundle 切分时，`Bundle.Save()` 内部已写文件、工厂分支再写一次相同内容，200MB 级数据双写。新增 `Bundle.HasFilePath`，有文件背书时跳过工厂写入
+
+### 新增
+
+- 自定义 Bundle 路径前缀可配置：模块常量改为实例属性 `Index.CustomBundleBasePath`（默认 `LibGGPK3/`，与 C# 原版 LibBundle3 一致），支持构造选项 `customBundleBasePath`；setter 自动补尾部 `/`，空值重置为默认。构造后修改仅影响后续匹配与新 bundle 命名，不重扫已有记录
+
 ## [1.3.0] - 2026-08-14
 
 ### 新增

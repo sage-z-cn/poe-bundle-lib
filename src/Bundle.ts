@@ -38,6 +38,13 @@ export class Bundle {
   set UncompressedSize(val: number) { this.privateHeader.uncompressedSize = val; }
   get CompressedSize(): number { return this.privateHeader.compressedSize; }
 
+  /**
+   * Whether this bundle is backed by a file on disk. When true, {@link Save}
+   * has already written the result to that file, so callers (e.g.
+   * `Index.FlushBundleToWrite`) can skip persisting the same buffer again.
+   */
+  get HasFilePath(): boolean { return this.filePath !== null; }
+
   private fileBuffer: Buffer;
   private filePath: string | null;
   private isMemory: boolean;

@@ -77,18 +77,24 @@ export class BundledGGPK extends GGPK {
   /**
    * Save index modifications back to the GGPK's _.index.bin FileRecord.
    * Must be called after {@link Index.Save}.
+   *
+   * Skipped when the index was never modified ({@link Index.Dirty}), so
+   * read-only sessions do not rewrite the (possibly very large) index.
    */
   saveIndex(): void {
+    if (!this.Index || !this.Index.Dirty) return;
     // Index 的 baseBundle.getFileBuffer() 包含完整压缩后的 index 数据
     const buf = (this.Index as any).baseBundle?.getFileBuffer() as Buffer | undefined;
     if (buf) {
       this._indexFile.write(buf);
+      this.Index.MarkClean();
     }
   }
 
   /**
    * Dispose the index and the underlying GGPK.
-   * Automatically writes the index back to the GGPK before closing.
+   * Automatically writes the index back to the GGPK before closing,
+   * but only if the index was modified.
    */
   Dispose(): void {
     this.saveIndex();

@@ -85,10 +85,9 @@ export class FileRecord {
     ms!.length += newContent.length;
 
     if (ms!.length >= index.MaxBundleSize) {
-      b.Save(ms!.buffer.subarray(0, ms!.length));
-      b.Dispose();
-      index._BundleToWrite = null;
-      index._BundleStreamToWrite = null;
+      // 压缩并通过工厂持久化（磁盘写文件 / GGPK 写回内部 FileRecord），
+      // 不能只压缩内存 Bundle，否则最终 Save 时 _BundleToWrite 已为 null，数据丢失
+      index.FlushBundleToWrite();
     }
 
     if (saveIndex) {
@@ -110,6 +109,7 @@ export class FileRecord {
       this.BundleRecord = bundle;
       bundle._Files.push(this);
     }
+    this.BundleRecord.Index._Dirty = true;
     this.Offset = offset;
     this.Size = size;
   }
