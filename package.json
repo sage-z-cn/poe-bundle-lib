@@ -1,6 +1,6 @@
 {
   "name": "poe-bundle-lib",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "Library for *.bundle.bin and Content.ggpk files of Path of Exile (Rewrite of LibGGPK3/LibBundle3)",
   "type": "module",
   "main": "dist/main.js",

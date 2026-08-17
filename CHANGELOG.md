@@ -5,6 +5,22 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本管理遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.2] - 2026-08-17
+
+### 修复
+
+- `Bundle.createEmpty()` 未初始化 `filePath`（`undefined`），`HasFilePath` 用 `!== null` 判断时误将新建 custom bundle 当作磁盘已有文件，`FlushBundleToWrite()` 因此跳过真正的数据持久化——首次写入与 `MaxBundleSize` 切分都会生成仅 60 字节空头的损坏 bundle，重新打开读取失败（1.3.1 的致命写回回归）。现补上 `filePath = null` 初始化，并将 `HasFilePath` 判断改为 `!= null` 双重防御 `undefined`
+
+### 新增
+
+- `BundledGGPK` 构造器新增第三参数 `options`（类型 `BundledGGPKOptions`，已从主入口导出），将 `customBundleBasePath` 透传给内部 `Index`——GGPK 内已有的 `TinyBundle/` 等自定义前缀 bundle 现在能被正确识别与复用（原有两参调用完全兼容）
+- 写回回归测试 `test/index-writeback.test.mjs`：从零构造最小 Bundles2 夹具，覆盖首次写入持久化、`MaxBundleSize` 强制切分、`customBundleBasePath` 复用 TinyBundle 三个场景（纳入 `npm test`）
+- 真实客户端测试 `test/real-client.test.mjs`（`npm run test:real`）：对国服客户端 `_.index.bin` 副本执行写入 / 切分 / 重开校验（119 万文件全路径解析、1993 条未改动记录逐字段比对），并三重校验（size + mtime + SHA-256）原始文件未被改动；客户端不存在时 SKIP
+
+### 变更
+
+- `test/dds.test.mjs`：自动创建 `%TEMP%\opencode` 输出目录（干净环境不再失败），PNG 预览全部改写入该目录，不再污染仓库根目录
+
 ## [1.3.1] - 2026-08-14
 
 ### 修复
