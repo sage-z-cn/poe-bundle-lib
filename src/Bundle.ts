@@ -43,7 +43,7 @@ export class Bundle {
    * has already written the result to that file, so callers (e.g.
    * `Index.FlushBundleToWrite`) can skip persisting the same buffer again.
    */
-  get HasFilePath(): boolean { return this.filePath !== null; }
+  get HasFilePath(): boolean { return this.filePath != null; }
 
   private fileBuffer: Buffer;
   private filePath: string | null;
@@ -126,6 +126,7 @@ export class Bundle {
     bundle.Record = record;
     bundle.isMemory = true;
     bundle.fileBuffer = writeHeaderToBuffer(header);
+    bundle.filePath = null; // must be initialized: HasFilePath treats undefined as "has file"
     bundle.privateHeader = header;
     bundle.compressedChunkSizes = new Int32Array(0);
     bundle.cachedContent = null;

@@ -43,4 +43,5 @@ export { BaseRecord } from './ggpk/records/BaseRecord.js';
 
 // Bundled GGPK
 export { BundledGGPK } from './bundled/BundledGGPK.js';
+export type { BundledGGPKOptions } from './bundled/BundledGGPK.js';
 export { GGPKBundleFactory } from './bundled/GGPKBundleFactory.js';
