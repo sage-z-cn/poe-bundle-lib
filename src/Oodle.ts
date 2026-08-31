@@ -95,6 +95,18 @@ export class Settings {
 type KoffiCallback = (...args: unknown[]) => unknown;
 let lib: koffi.IKoffiLib | null = null;
 
+/**
+ * Try to load the DLL, returning null instead of throwing on failure
+ * (wrong architecture, missing dependencies, unreadable path, ...).
+ */
+function tryLoad(dllPath: string): koffi.IKoffiLib | null {
+  try {
+    return koffi.load(dllPath);
+  } catch {
+    return null;
+  }
+}
+
 function loadLibrary(): koffi.IKoffiLib {
   if (lib) return lib;
 
@@ -103,59 +115,66 @@ function loadLibrary(): koffi.IKoffiLib {
   // package root: one level up from src/ (dev) or dist/ (after build)
   const packageRoot = path.dirname(__dirname);
 
+  // Electron: process.resourcesPath points to the resources directory of a
+  // packaged app (where extraResources are placed); absent in plain Node.
+  const electronResources = (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+
   // Search order:
   // 1. libs/ directory under package root (node_modules/poe-bundle-lib/libs/)
   // 2. libs/ directory under cwd (user's project root)
   // 3. Current working directory
-  // 4. OS standard search paths (PATH, system directories)
-  // 5. Node.exe directory
-  const bundledDll = path.join(packageRoot, 'libs', dllName);
-  if (fs.existsSync(bundledDll)) {
-    lib = koffi.load(bundledDll);
-    return lib;
-  }
+  // 4. Electron resources directory (packaged app: extraResources target)
+  // 5. Node.exe / Electron.exe directory
+  // 6. OS standard search paths (PATH, system directories) - by bare name
+  const candidateDirs = [
+    path.join(packageRoot, 'libs'),
+    path.join(process.cwd(), 'libs'),
+    process.cwd(),
+    ...(electronResources ? [electronResources, path.join(electronResources, 'libs')] : []),
+    path.dirname(process.execPath),
+  ].filter((d, i, arr) => d && arr.indexOf(d) === i);
 
-  const cwdLibsDll = path.join(process.cwd(), 'libs', dllName);
-  if (fs.existsSync(cwdLibsDll)) {
-    lib = koffi.load(cwdLibsDll);
-    return lib;
-  }
-
-  // Try loading by name (uses OS DLL search path: PATH, system dirs, etc.)
-  try {
-    lib = koffi.load(dllName);
-    return lib;
-  } catch {
-    // Fall through to explicit path search
-  }
-
-  const searchPaths = [
-    process.cwd(),                // Current working directory
-    path.dirname(process.execPath), // Node.exe directory
-  ];
-
-  let dllPath: string | null = null;
-  for (const dir of searchPaths) {
+  for (const dir of candidateDirs) {
     const candidate = path.join(dir, dllName);
+
+    // Paths inside app.asar exist for fs.existsSync (Electron patched fs)
+    // but cannot be loaded by the OS loader (LoadLibrary). Try the
+    // corresponding app.asar.unpacked location instead, then skip.
+    if (candidate.includes('app.asar')) {
+      const unpacked = candidate.replace('app.asar', 'app.asar.unpacked');
+      if (unpacked !== candidate && fs.existsSync(unpacked)) {
+        const loaded = tryLoad(unpacked);
+        if (loaded) {
+          lib = loaded;
+          return lib;
+        }
+      }
+      continue;
+    }
+
     if (fs.existsSync(candidate)) {
-      dllPath = candidate;
-      break;
+      const loaded = tryLoad(candidate);
+      if (loaded) {
+        lib = loaded;
+        return lib;
+      }
+      // File exists but failed to load (corrupted / wrong arch / missing
+      // dependencies) - keep searching instead of aborting.
     }
   }
 
-  if (!dllPath) {
-    throw new Error(
-      `Could not find ${dllName}. Searched:\n` +
-      `  - ${bundledDll}\n` +
-      `  - ${cwdLibsDll}\n` +
-      searchPaths.map(p => `  - ${p}`).join('\n') +
-      '\nPlus OS standard search paths (PATH, system directories).'
-    );
+  // Try loading by name (uses OS DLL search path: exe dir, system dirs, PATH)
+  const loadedByName = tryLoad(dllName);
+  if (loadedByName) {
+    lib = loadedByName;
+    return lib;
   }
 
-  lib = koffi.load(dllPath);
-
-  return lib;
+  throw new Error(
+    `Could not load ${dllName}. Searched:\n` +
+    candidateDirs.map(p => `  - ${p}`).join('\n') +
+    '\nPlus OS standard search paths (PATH, system directories).'
+  );
 }
 
 // --- FFI Function Definitions ---
