@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本管理遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+#### 1.4.0
+**Bug Fixes**
+
+- **Oodle**: skip asar paths when locating `oo2core.dll` and fall through to the next candidate when a DLL load fails, so compression still works when packaged inside an asar archive
+- **GGPK**: write free-list pointers to the correct offset and tolerate broken free-list links instead of failing on damaged files
+- **Index**: fix custom bundle writeback being skipped during index flush, preventing custom-prefixed bundles from losing persisted data
+
+**Improvements**
+
+- **DDS**: `@napi-rs/canvas` is now an optional, lazily loaded dependency — it is only required when using PNG preview/overlay features, reducing install size and startup cost for library consumers
+
 ## [1.3.2] - 2026-08-17
 
 ### 修复
