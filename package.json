@@ -75,10 +75,10 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.6",
     "koffi": "^2.9.0"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.6",
     "@types/node": "^20.19.41",
     "typescript": "^5.7.0"
   },

@@ -1,5 +1,24 @@
-import { createCanvas } from '@napi-rs/canvas';
+import { createRequire } from 'node:module';
 import type { SKRSContext2D } from '@napi-rs/canvas';
+
+// @napi-rs/canvas is an optional peer of this library (only needed by dds
+// features). It is loaded lazily so consumers that don't use dds don't pay
+// for the large multi-platform binary package.
+const require = createRequire(import.meta.url);
+let canvasModule: typeof import('@napi-rs/canvas') | null = null;
+
+function loadCanvas(): typeof import('@napi-rs/canvas') {
+  if (canvasModule === null) {
+    try {
+      canvasModule = require('@napi-rs/canvas');
+    } catch {
+      throw new Error(
+        "dds features require the optional dependency '@napi-rs/canvas'. Install it in your project: npm i @napi-rs/canvas",
+      );
+    }
+  }
+  return canvasModule!;
+}
 import { RgbaSurface } from './RgbaSurface.js';
 
 /**
@@ -273,7 +292,7 @@ export function applyText(surface: RgbaSurface, options: AddTextInput): RgbaSurf
   }
 
   // Text layer: a fully transparent canvas (no putImageData of the base image)
-  const canvas = createCanvas(surface.width, surface.height);
+  const canvas = loadCanvas().createCanvas(surface.width, surface.height);
   const ctx = canvas.getContext('2d');
   for (const entry of entries) {
     drawTextBlock(ctx, surface.width, surface.height, entry);

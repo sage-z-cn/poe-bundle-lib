@@ -1,8 +1,28 @@
-import { createCanvas, ImageData } from '@napi-rs/canvas';
+import { createRequire } from 'node:module';
 
 /**
  * RgbaSurface - represents a decoded RGBA8888 pixel surface (row-major).
  */
+
+// @napi-rs/canvas is an optional peer of this library (only needed by dds
+// features). It is loaded lazily so consumers that don't use dds don't pay
+// for the large multi-platform binary package.
+const require = createRequire(import.meta.url);
+let canvasModule: typeof import('@napi-rs/canvas') | null = null;
+
+function loadCanvas(): typeof import('@napi-rs/canvas') {
+  if (canvasModule === null) {
+    try {
+      canvasModule = require('@napi-rs/canvas');
+    } catch {
+      throw new Error(
+        "dds features require the optional dependency '@napi-rs/canvas'. Install it in your project: npm i @napi-rs/canvas",
+      );
+    }
+  }
+  return canvasModule!;
+}
+
 export class RgbaSurface {
   readonly width: number;
   readonly height: number;
@@ -33,6 +53,7 @@ export class RgbaSurface {
    * Encode the surface as a PNG image.
    */
   toPng(): Buffer {
+    const { createCanvas, ImageData } = loadCanvas();
     const canvas = createCanvas(this.width, this.height);
     const ctx = canvas.getContext('2d');
     ctx.putImageData(
