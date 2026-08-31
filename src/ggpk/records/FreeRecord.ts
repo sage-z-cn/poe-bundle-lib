@@ -29,11 +29,29 @@ export class FreeRecord extends BaseRecord {
 
   /**
    * Next FreeRecord in the linked-list, lazy-loaded from ggpk.
+   *
+   * @remarks If the link on disk points to invalid data (common in GGPK files
+   * previously written by third-party patch tools), the chain is truncated
+   * here and the broken `nextFreeOffset` is repaired in place instead of
+   * throwing. Losing tail entries only leaks some reusable free space.
    */
   get next(): FreeRecord | null {
     if (this._next === undefined && this.nextFreeOffset !== 0n) {
-      this._next = this.ggpk.readRecord(this.nextFreeOffset) as FreeRecord;
-      this._next.previous = this;
+      try {
+        const nextRecord = this.ggpk.readRecord(this.nextFreeOffset);
+        if (!(nextRecord instanceof FreeRecord)) {
+          throw new Error(
+            `Record at offset ${this.nextFreeOffset} is not a FreeRecord`,
+          );
+        }
+        nextRecord.previous = this;
+        this._next = nextRecord;
+      } catch {
+        // Broken link: treat as end of chain and repair the on-disk pointer
+        this._next = null;
+        this.nextFreeOffset = 0n;
+        this.ggpk.writeBigInt64At(0n, this.offset + 8n);
+      }
     }
     return this._next ?? null;
   }
@@ -171,7 +189,7 @@ export class FreeRecord extends BaseRecord {
           ggpk.firstFreeRecord = null;
         }
       } else {
-        ggpk.writeBigInt64At(0n, this.previous.offset + 4n);
+        ggpk.writeBigInt64At(0n, this.previous.offset + 8n);
         this.previous.next = null;
       }
     } else if (this.previous === null) {
@@ -180,7 +198,7 @@ export class FreeRecord extends BaseRecord {
         ggpk.firstFreeRecord = this.next;
       }
     } else {
-      ggpk.writeBigInt64At(this.next.offset, this.previous.offset + 4n);
+      ggpk.writeBigInt64At(this.next.offset, this.previous.offset + 8n);
       this.previous.next = this.next;
     }
 
@@ -207,11 +225,11 @@ export class FreeRecord extends BaseRecord {
       let last: FreeRecord = this;
       while (last.next !== null)
         last = last.next;
-      ggpk.writeBigInt64At(old.offset, last.offset + 4n);
+      ggpk.writeBigInt64At(old.offset, last.offset + 8n);
       last.next = old;
     } else {
       // Not first
-      ggpk.writeBigInt64At(this.offset, this.previous.offset + 4n);
+      ggpk.writeBigInt64At(this.offset, this.previous.offset + 8n);
       this.previous.next = this;
     }
   }

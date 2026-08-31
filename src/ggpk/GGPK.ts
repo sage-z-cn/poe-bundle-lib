@@ -166,12 +166,18 @@ export class GGPK {
     if (this._firstFreeRecord === undefined) {
       if (this.record.firstFreeRecordOffset !== 0n) {
         try {
-          this._firstFreeRecord = this.readRecord(
-            this.record.firstFreeRecordOffset,
-          ) as FreeRecord;
+          const first = this.readRecord(this.record.firstFreeRecordOffset);
+          if (!(first instanceof FreeRecord)) {
+            throw new Error(
+              `Record at offset ${this.record.firstFreeRecordOffset} is not a FreeRecord`,
+            );
+          }
+          this._firstFreeRecord = first;
         } catch (e) {
-          // FreeRecord offset 指向无效数据，重置为空闲链表为空
+          // FreeRecord offset 指向无效数据，重置空闲链表为空，
+          // 并把修复持久化到磁盘（GGPK 记录的 firstFreeRecordOffset 字段）
           this.record.firstFreeRecordOffset = 0n;
+          this.writeBigInt64At(0n, this.record.offset + 20n);
           this._firstFreeRecord = null;
         }
       } else {
