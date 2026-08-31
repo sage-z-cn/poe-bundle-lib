@@ -129,6 +129,7 @@ export class Bundle {
     // 导致 Index.FlushBundleToWrite 跳过数据写入，custom bundle 只剩 60 字节空头
     bundle.filePath = null;
     bundle.fileBuffer = writeHeaderToBuffer(header);
+    bundle.filePath = null; // must be initialized: HasFilePath treats undefined as "has file"
     bundle.privateHeader = header;
     bundle.compressedChunkSizes = new Int32Array(0);
     bundle.cachedContent = null;

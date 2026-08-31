@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Index write-back regression tests (drive-backed Bundles2 directory).
  *
  * Reproduces the review findings programmatically, without a real game
@@ -8,11 +8,11 @@
  *
  * Covered:
  *  1. baseline read of the original file
- *  2. first Write() into a newly created custom bundle — regression:
+ *  2. first Write() into a newly created custom bundle 鈥?regression:
  *     Bundle.createEmpty() used to leave filePath undefined, so
  *     HasFilePath misjudged it as disk-backed and FlushBundleToWrite
  *     skipped persisting, leaving an empty 60-byte LibGGPK3/0.bundle.bin
- *  3. multi-bundle split via a small MaxBundleSize — regression: data loss
+ *  3. multi-bundle split via a small MaxBundleSize 鈥?regression: data loss
  *     when the pending bundle was flushed at the threshold
  *  4. customBundleBasePath option: an existing custom bundle with a
  *     non-default prefix is recognized and reused (BundledGGPK forwards

@@ -6,6 +6,19 @@ import type { FileRecord } from '../ggpk/records/FileRecord.js';
 import type { TreeNode } from '../ggpk/records/TreeNode.js';
 
 /**
+ * Additional options for opening a {@link BundledGGPK}.
+ */
+export interface BundledGGPKOptions {
+  /**
+   * Path prefix (ending with `/`) identifying custom bundles stored inside the
+   * GGPK (e.g. `TinyBundle/` for EasyFarm-style patches). Forwarded to the
+   * internal {@link Index} so existing custom bundles under that prefix are
+   * recognized and reused for new writes. Defaults to `LibGGPK3/`.
+   */
+  customBundleBasePath?: string;
+}
+
+/**
  * Unified handler for a Content.ggpk file that contains both regular GGPK
  * records and a bundled file index (Bundles2/_.index.bin).
  *
@@ -36,13 +49,10 @@ export class BundledGGPK extends GGPK {
    * @param filePath - Path to the Content.ggpk file
    * @param parsePathsInIndex - Whether to parse file paths from the index
    *   immediately. Set to `false` for faster startup — you can call
-   * {@link Index.ParsePaths} later when paths are needed.
-   * @param options - Additional options forwarded to the {@link Index}
-   *   constructor. `customBundleBasePath` identifies custom bundles created
-   *   with a non-default prefix (e.g. `TinyBundle/`), so existing custom
-   *   bundles inside this ggpk are recognized and reused for new writes.
-   */
-  constructor(filePath: string, parsePathsInIndex: boolean = true, options: { customBundleBasePath?: string } = {}) {
+    *   {@link Index.ParsePaths} later when paths are needed.
+    * @param options - Additional options forwarded to the internal {@link Index}.
+    */
+  constructor(filePath: string, parsePathsInIndex: boolean = true, options: BundledGGPKOptions = {}) {
     super(filePath);
     try {
       const result = this.initIndex(parsePathsInIndex, options);
@@ -57,7 +67,7 @@ export class BundledGGPK extends GGPK {
   /**
    * Locate `Bundles2/_.index.bin` inside the GGPK and create the {@link Index}.
    */
-  private initIndex(parsePathsInIndex: boolean, options: { customBundleBasePath?: string }): { index: Index; indexFile: FileRecord } {
+  private initIndex(parsePathsInIndex: boolean, options: BundledGGPKOptions): { index: Index; indexFile: FileRecord } {
     const bundles2 = this.root.findByName('Bundles2') as DirectoryRecord | null;
     if (!bundles2) {
       throw new Error('Cannot find directory "Bundles2" in the ggpk');

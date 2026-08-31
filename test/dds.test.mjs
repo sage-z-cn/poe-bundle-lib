@@ -6,7 +6,7 @@
  * the project's current setup). Run via `npm test` after `npm run build`.
  *
  * All outputs (PNG previews for manual inspection and intermediate DDS
- * files) go to %TEMP%/opencode, which is created on demand; nothing is
+ * files) go to %TEMP%/opencode, which is created if missing — nothing is
  * written to the repository working directory.
  */
 import assert from 'node:assert/strict';
