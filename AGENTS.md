@@ -5,9 +5,12 @@ TypeScript 重写的 Path of Exile `*.bundle.bin` / `Content.ggpk` 文件操作�
 ## 平台与运行
 
 - **仅 Windows**（`package.json` `"os": ["win32"]`），Node.js >= 20
-- `oo2core.dll`（Oodle 压缩库）**必须存在**，搜索顺序：`libs/`（包根目录）→ `cwd/libs/` → `cwd` → 系统 PATH → Node.exe 目录
+- `oo2core.dll`（Oodle 压缩库）**必须存在**。搜索逻辑（`Oodle.ts` `loadLibrary`）：
+  - 候选目录依次为：包根 `libs/` → `cwd/libs/` → `cwd` → Electron `resourcesPath`（含其 `libs/`） → Node/Electron exe 目录，最后按裸名走 OS 搜索路径
+  - **asar 内路径自动跳过**：`fs.existsSync` 在 Electron patched fs 下对 asar 虚拟文件返回 true，但系统 LoadLibrary 读不了 asar——含 `app.asar` 的候选会自动映射到 `app.asar.unpacked`，映射不存在则跳过
+  - 单个候选 `koffi.load` 失败（损坏/架构不符）时**继续尝试下一候选**，不会中断
 - 构建：`npm run build`（仅 `tsc`），输出到 `dist/`
-- 无测试、无 linter、无 CI
+- 测试：`npm test`（合成 index 写回 + dds 往返两组用例）；`npm run test:real` 需真实客户端文件
 
 ## 架构
 
@@ -24,7 +27,8 @@ src/
 ├── DriveBundleFactory.ts # 磁盘文件系统实现（读写 Bundles2/ 目录）
 ├── ggpk/                 # Content.ggpk 格式（GGPK → DirectoryRecord → FileRecord → FreeRecord）
 ├── bundled/              # BundledGGPK：GGPK + Index 一体化，bundle 数据直接存 GGPK 内部
-└── main.ts               # 统一导出入口
+├── dds/                  # DDS 纹理解码/文字叠加（@napi-rs/canvas 可选依赖，惰性加载）
+└── main.ts               # 统一导出入口（不含 dds，经 "poe-bundle-lib/dds" 子路径导出）
 ```
 
 ## 关键细节
@@ -83,6 +87,8 @@ ggpk.dispose();                              // 自动 renewHashes() + flush + c
 - 基于**文件描述符**的随机访问 I/O（`fs.readSync`/`fs.writeSync`），不是 Stream
 - `dispose()` 自动调用 `renewHashes()`（但**跳过 root 及其直接子目录**，避免触发游戏补丁检查）
 - 空闲空间管理：FreeRecord 链表 + `findBestFreeRecord()` + `fastCompact()`
+- **FreeRecord 磁盘布局**：`[length:4][tag:4][nextFreeOffset:8]`——next 指针位于 **offset+8**（不是 +4）。曾因移植笔误写到 +4（tag 字段），导致当次会话正常、下次打开报 `Invalid record tag`
+- **链表损坏容错**：头节点或后续节点懒加载失败（第三方补丁工具写坏的 GGPK 常见）时，视链表到此结束并把修复持久化写回磁盘，不抛错；丢失的尾部空闲空间只是无法复用的空洞，不影响文件树
 - 记录标签：GGPK (0x4B504747), PDIR (0x52494450), FILE (0x454C4946), FREE (0x45455246)
 
 ### BundledGGPK
@@ -100,6 +106,10 @@ ggpk.Dispose();  // 自动 saveIndex() + Index.Dispose() + GGPK.dispose()
 Index 通过第一个目录的 `PathHash` 值自动检测哈希算法：
 - `0xF42A94E69CFF42FEn` → MurmurHash64A（新版，**先转小写**）
 - `0x07E47507B4A92E53n` → FNV1a64Hash（旧版）
+
+### dds 与 @napi-rs/canvas（可选依赖）
+
+`@napi-rs/canvas`（~37MB 多平台二进制）仅 dds 功能需要，已从 `dependencies` 移到 `devDependencies`（保留编译期类型）：`dds/RgbaSurface.ts`、`dds/TextLayer.ts` 通过 `createRequire` **惰性加载**，未安装时首次调用抛出带安装指引的错误。不使用 dds 的消费者（如 POE Bench 打包）不会把它带进产物。
 
 ### 命名约定
 
