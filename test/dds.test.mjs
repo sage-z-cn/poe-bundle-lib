@@ -5,11 +5,12 @@
  * Self-contained ESM script using node:assert (no test framework, matching
  * the project's current setup). Run via `npm test` after `npm run build`.
  *
- * PNG previews (for manual inspection) are written to the current working
- * directory; intermediate DDS outputs go to %TEMP%/opencode.
+ * All outputs (PNG previews for manual inspection and intermediate DDS
+ * files) go to %TEMP%/opencode, which is created on demand; nothing is
+ * written to the repository working directory.
  */
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { performance } from 'node:perf_hooks';
@@ -31,6 +32,7 @@ const {
 
 const SAMPLE = new URL('../examples/atlasmapwarlord.dds', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const TMP = join(tmpdir(), 'opencode');
+mkdirSync(TMP, { recursive: true });
 const original = readFileSync(SAMPLE);
 
 /** assertion counter, incremented by check() */
@@ -96,7 +98,7 @@ test('decode + lossless round-trip on mip 0', () => {
   const out = img.writeMipPixels(0, baseSurface.pixels, false);
   check(out.equals(original), 'round-trip should be byte-identical');
   // also export an untouched preview of the original for visual reference
-  writeFileSync('atlas-test-original.png', baseSurface.toPng());
+  writeFileSync(join(TMP, 'atlas-test-original.png'), baseSurface.toPng());
 });
 
 test('pixel() sampling matches raw file bytes (DX10 order, unsigned)', () => {
@@ -118,7 +120,7 @@ test('x/y absolute positioning (AddText single block)', () => {
   check(bbox.count > 30, `red ink pixels: ${bbox.count}`);
   check(Math.abs(bbox.minX - 10) <= 3, `ink left ${bbox.minX} vs x=10`);
   check(Math.abs(bbox.minY - 12) <= 3, `ink top ${bbox.minY} vs y=12`);
-  writeFileSync('atlas-test-xy.png', mip0(editedXY).toPng());
+  writeFileSync(join(TMP, 'atlas-test-xy.png'), mip0(editedXY).toPng());
 });
 
 test('CSS percentage anchoring (right/bottom 5%)', () => {
@@ -128,7 +130,7 @@ test('CSS percentage anchoring (right/bottom 5%)', () => {
   check(bbox.maxX <= 76, `ink right ${bbox.maxX} > 76`);
   check(bbox.maxY <= 76, `ink bottom ${bbox.maxY} > 76`);
   check(bbox.maxX >= 55, `ink right ${bbox.maxX} suspiciously small (not anchored)`);
-  writeFileSync('atlas-test-css.png', mip0(edited).toPng());
+  writeFileSync(join(TMP, 'atlas-test-css.png'), mip0(edited).toPng());
 });
 
 test('center both with ink symmetry', () => {
@@ -139,7 +141,7 @@ test('center both with ink symmetry', () => {
   const dy = Math.abs(bbox.minY - (79 - bbox.maxY));
   check(dx <= 3, `horizontal asymmetry ${bbox.minX} vs ${79 - bbox.maxX}`);
   check(dy <= 3, `vertical asymmetry ${bbox.minY} vs ${79 - bbox.maxY}`);
-  writeFileSync('atlas-test-center.png', mip0(edited).toPng());
+  writeFileSync(join(TMP, 'atlas-test-center.png'), mip0(edited).toPng());
 });
 
 test("fontSize 'auto' fits long text inside bounds", () => {
@@ -148,7 +150,7 @@ test("fontSize 'auto' fits long text inside bounds", () => {
   check(bbox.count > 30, `cyan ink pixels: ${bbox.count}`);
   check(bbox.minX >= 0 && bbox.maxX <= 79 && bbox.minY >= 0 && bbox.maxY <= 79, `overflow: ${JSON.stringify(bbox)}`);
   check(bbox.maxX - bbox.minX + 1 >= 60, `ink width ${bbox.maxX - bbox.minX + 1} < 60`);
-  writeFileSync('atlas-test-auto.png', mip0(edited).toPng());
+  writeFileSync(join(TMP, 'atlas-test-auto.png'), mip0(edited).toPng());
 });
 
 test('multi-text array: three blocks, correct placement, disjoint', () => {
@@ -171,7 +173,7 @@ test('multi-text array: three blocks, correct placement, disjoint', () => {
   check(disjoint(multiRed, multiGreen), `red/green overlap: ${JSON.stringify(multiRed)} vs ${JSON.stringify(multiGreen)}`);
   check(disjoint(multiRed, multiYellow), `red/yellow overlap: ${JSON.stringify(multiRed)} vs ${JSON.stringify(multiYellow)}`);
   check(disjoint(multiGreen, multiYellow), `green/yellow overlap: ${JSON.stringify(multiGreen)} vs ${JSON.stringify(multiYellow)}`);
-  writeFileSync('atlas-test-multi.png', edited.toPng());
+  writeFileSync(join(TMP, 'atlas-test-multi.png'), edited.toPng());
 });
 
 test('base fidelity: pixels outside the multi-text ink union unchanged', () => {

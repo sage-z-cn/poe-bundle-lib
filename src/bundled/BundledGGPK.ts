@@ -36,12 +36,16 @@ export class BundledGGPK extends GGPK {
    * @param filePath - Path to the Content.ggpk file
    * @param parsePathsInIndex - Whether to parse file paths from the index
    *   immediately. Set to `false` for faster startup — you can call
-   *   {@link Index.ParsePaths} later when paths are needed.
+   * {@link Index.ParsePaths} later when paths are needed.
+   * @param options - Additional options forwarded to the {@link Index}
+   *   constructor. `customBundleBasePath` identifies custom bundles created
+   *   with a non-default prefix (e.g. `TinyBundle/`), so existing custom
+   *   bundles inside this ggpk are recognized and reused for new writes.
    */
-  constructor(filePath: string, parsePathsInIndex: boolean = true) {
+  constructor(filePath: string, parsePathsInIndex: boolean = true, options: { customBundleBasePath?: string } = {}) {
     super(filePath);
     try {
-      const result = this.initIndex(parsePathsInIndex);
+      const result = this.initIndex(parsePathsInIndex, options);
       this.Index = result.index;
       this._indexFile = result.indexFile;
     } catch (e) {
@@ -53,7 +57,7 @@ export class BundledGGPK extends GGPK {
   /**
    * Locate `Bundles2/_.index.bin` inside the GGPK and create the {@link Index}.
    */
-  private initIndex(parsePathsInIndex: boolean): { index: Index; indexFile: FileRecord } {
+  private initIndex(parsePathsInIndex: boolean, options: { customBundleBasePath?: string }): { index: Index; indexFile: FileRecord } {
     const bundles2 = this.root.findByName('Bundles2') as DirectoryRecord | null;
     if (!bundles2) {
       throw new Error('Cannot find directory "Bundles2" in the ggpk');
@@ -69,6 +73,7 @@ export class BundledGGPK extends GGPK {
       index: new Index(data, {
         parsePaths: parsePathsInIndex,
         bundleFactory: new GGPKBundleFactory(this, bundles2),
+        customBundleBasePath: options.customBundleBasePath,
       }),
       indexFile,
     };

@@ -43,7 +43,7 @@ export class Bundle {
    * has already written the result to that file, so callers (e.g.
    * `Index.FlushBundleToWrite`) can skip persisting the same buffer again.
    */
-  get HasFilePath(): boolean { return this.filePath !== null; }
+  get HasFilePath(): boolean { return this.filePath != null; }
 
   private fileBuffer: Buffer;
   private filePath: string | null;
@@ -125,6 +125,9 @@ export class Bundle {
     const bundle = Object.create(Bundle.prototype) as Bundle;
     bundle.Record = record;
     bundle.isMemory = true;
+    // 必须显式初始化为 null：留空(undefined)会让 HasFilePath 误判为磁盘文件，
+    // 导致 Index.FlushBundleToWrite 跳过数据写入，custom bundle 只剩 60 字节空头
+    bundle.filePath = null;
     bundle.fileBuffer = writeHeaderToBuffer(header);
     bundle.privateHeader = header;
     bundle.compressedChunkSizes = new Int32Array(0);
